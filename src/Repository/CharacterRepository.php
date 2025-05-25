@@ -15,29 +15,66 @@ class CharacterRepository extends ServiceEntityRepository
     {
         parent::__construct($registry, Character::class);
     }
+    
 
-    //    /**
-    //     * @return Character[] Returns an array of Character objects
-    //     */
-    //    public function findByExampleField($value): array
-    //    {
-    //        return $this->createQueryBuilder('c')
-    //            ->andWhere('c.exampleField = :val')
-    //            ->setParameter('val', $value)
-    //            ->orderBy('c.id', 'ASC')
-    //            ->setMaxResults(10)
-    //            ->getQuery()
-    //            ->getResult()
-    //        ;
-    //    }
-
-    //    public function findOneBySomeField($value): ?Character
-    //    {
-    //        return $this->createQueryBuilder('c')
-    //            ->andWhere('c.exampleField = :val')
-    //            ->setParameter('val', $value)
-    //            ->getQuery()
-    //            ->getOneOrNullResult()
-    //        ;
-    //    }
+    /**
+     * Get random characters
+     *
+     * @param int $limit Number of random characters to return
+     * @return Character[] Returns an array of random Character objects
+     */
+    public function findRandom(int $limit = 5): array
+    {
+        $conn = $this->getEntityManager()->getConnection();
+        
+        // PostgreSQL specific random selection
+        $sql = 'SELECT c.id FROM character c ORDER BY RANDOM() LIMIT :limit';
+        $stmt = $conn->prepare($sql);
+        $stmt->bindValue('limit', $limit, \PDO::PARAM_INT);
+        $result = $stmt->executeQuery();
+        
+        $ids = array_column($result->fetchAllAssociative(), 'id');
+        
+        if (empty($ids)) {
+            return [];
+        }
+        
+        return $this->createQueryBuilder('c')
+            ->where('c.id IN (:ids)')
+            ->setParameter('ids', $ids)
+            ->getQuery()
+            ->getResult();
+    }
+    
+    /**
+     * Find paginated characters with minimal loading
+     *
+     * @param int $page Page number (starts from 1)
+     * @param int $limit Number of items per page
+     * @return Character[] Returns an array of Character objects
+     */
+    public function findPaginated(int $page = 1, int $limit = 20): array
+    {
+        $offset = max(0, ($page - 1) * $limit);
+        
+        return $this->createQueryBuilder('c')
+            ->orderBy('c.id', 'ASC')
+            ->setMaxResults($limit)
+            ->setFirstResult($offset)
+            ->getQuery()
+            ->getResult();
+    }
+    
+    /**
+     * Count total number of characters
+     * 
+     * @return int Total number of characters
+     */
+    public function countTotal(): int
+    {
+        return $this->createQueryBuilder('c')
+            ->select('COUNT(c.id)')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
 }

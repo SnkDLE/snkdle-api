@@ -5,6 +5,7 @@ namespace App\Entity;
 use App\Repository\CharacterRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Annotation\Groups;
 
 #[ORM\Entity(repositoryClass: CharacterRepository::class)]
 class Character
@@ -12,24 +13,31 @@ class Character
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups(['character:read'])]
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
+    #[Groups(['character:read', 'character:write'])]
     private ?string $name = null;
 
     #[ORM\Column(length: 255)]
+    #[Groups(['character:read', 'character:write'])]
     private ?string $image = null;
 
     #[ORM\Column(type: Types::ARRAY)]
+    #[Groups(['character:read', 'character:write'])]
     private array $species = [];
 
     #[ORM\Column(length: 255)]
+    #[Groups(['character:read', 'character:write'])]
     private ?string $gender = null;
 
     #[ORM\Column]
+    #[Groups(['character:read', 'character:write'])]
     private ?int $age = null;
 
     #[ORM\Column(length: 255)]
+    #[Groups(['character:read', 'character:write'])]
     private ?string $status = null;
 
     public function getId(): ?int

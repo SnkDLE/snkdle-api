@@ -13,39 +13,50 @@ with [FrankenPHP](https://frankenphp.dev) and [Caddy](https://caddyserver.com/) 
 4. Open `https://localhost` in your favorite web browser and [accept the auto-generated TLS certificate](https://stackoverflow.com/a/15076602/1352334)
 5. Run `docker compose down --remove-orphans` to stop the Docker containers.
 
-## Features
+## Basic commands
 
-* Production, development and CI ready
-* Just 1 service by default
-* Blazing-fast performance thanks to [the worker mode of FrankenPHP](https://github.com/dunglas/frankenphp/blob/main/docs/worker.md) (automatically enabled in prod mode)
-* [Installation of extra Docker Compose services](docs/extra-services.md) with Symfony Flex
-* Automatic HTTPS (in dev and prod)
-* HTTP/3 and [Early Hints](https://symfony.com/blog/new-in-symfony-6-3-early-hints) support
-* Real-time messaging thanks to a built-in [Mercure hub](https://symfony.com/doc/current/mercure.html)
-* [Vulcain](https://vulcain.rocks) support
-* Native [XDebug](docs/xdebug.md) integration
-* Super-readable configuration
+### Symfony commands inside Docker
 
-**Enjoy!**
+Run Symfony commands inside the PHP container:
 
-## Docs
+```bash
+# Basic Symfony CLI commands
+docker compose exec php bin/console cache:clear
+docker compose exec php bin/console debug:router
+docker compose exec php bin/console debug:container
 
-1. [Options available](docs/options.md)
-2. [Using Symfony Docker with an existing project](docs/existing-project.md)
-3. [Support for extra services](docs/extra-services.md)
-4. [Deploying in production](docs/production.md)
-5. [Debugging with Xdebug](docs/xdebug.md)
-6. [TLS Certificates](docs/tls.md)
-7. [Using MySQL instead of PostgreSQL](docs/mysql.md)
-8. [Using Alpine Linux instead of Debian](docs/alpine.md)
-9. [Using a Makefile](docs/makefile.md)
-10. [Updating the template](docs/updating.md)
-11. [Troubleshooting](docs/troubleshooting.md)
+# Database migrations
+docker compose exec php bin/console make:migration
+docker compose exec php bin/console doctrine:migrations:migrate
+docker compose exec php bin/console doctrine:migrations:status
 
-## License
+# Entity management
+docker compose exec php bin/console make:entity
+docker compose exec php bin/console make:crud
 
-Symfony Docker is available under the MIT License.
+# Creating controllers and forms
+docker compose exec php bin/console make:controller
+docker compose exec php bin/console make:form
 
-## Credits
+# Database commands
+docker compose exec php bin/console doctrine:database:create
+docker compose exec php bin/console doctrine:schema:update --force
+docker compose exec php bin/console doctrine:fixtures:load
 
-Created by [Kévin Dunglas](https://dunglas.dev), co-maintained by [Maxime Helias](https://twitter.com/maxhelias) and sponsored by [Les-Tilleuls.coop](https://les-tilleuls.coop).
+# Access database directly
+docker compose exec database psql -U app -d app
+
+# Composer commands
+docker compose exec php composer require [package-name]
+docker compose exec php composer update
+
+#Show tebles
+```
+
+You can also use the Symfony console directly by attaching to the PHP container:
+
+```bash
+docker compose exec php bash
+# Then inside the container:
+bin/console [your-command]
+```
