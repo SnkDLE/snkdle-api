@@ -17,6 +17,7 @@ use Symfony\Component\Validator\Validator\ValidatorInterface;
 #[Route('/api/character', name: 'api_character_')]
 final class CharacterController extends AbstractController
 {
+    // Reordered routes to ensure specific routes match before wildcard routes
     #[Route('', name: 'index', methods: ['GET'])]
     public function index(Request $request, CharacterRepository $characterRepository, SerializerInterface $serializer): JsonResponse
     {
@@ -35,41 +36,52 @@ final class CharacterController extends AbstractController
         ]);
     }
     
-    #[Route('/random', name: 'random', methods: ['GET'])]
-    public function random(Request $request, CharacterRepository $characterRepository): JsonResponse
+    #[Route('/daily', name: 'daily', methods: ['GET'])]
+    public function dailyCharacter(CharacterRepository $characterRepository): JsonResponse
     {
-        $limit = (int) $request->query->get('limit', 5);
-        $limit = min(max($limit, 1), 20); // Between 1 and 20
-        
-        $characters = $characterRepository->findRandom($limit);
-        
-        return $this->json([
-            'data' => $characters,
-        ], 200, [], [
-            'groups' => ['character:read']
-        ]);
+        try {
+            $dailyCharacter = $characterRepository->getDailyCharacter();
+            
+            // Si aucun personnage n'a été trouvé, on en récupère un aléatoirement
+            if (!$dailyCharacter) {
+                $dailyCharacter = $characterRepository->getRandomCharacter();
+            }
+            
+            return $this->json([
+                'status' => 'success',
+                'data' => $dailyCharacter,
+            ], 200, [], [
+                'groups' => ['character:read']
+            ]);
+        } catch (\Exception $e) {
+            return $this->json([
+                'status' => 'error',
+                'message' => 'Failed to get daily character: ' . $e->getMessage(),
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
     
-    #[Route('/paginated', name: 'paginated', methods: ['GET'])]
-    public function paginated(Request $request, CharacterRepository $characterRepository): JsonResponse
+    #[Route('/random-api', name: 'random_api', methods: ['GET'])]
+    public function randomFromApi(CharacterRepository $characterRepository): JsonResponse
     {
-        $page = max(1, (int) $request->query->get('page', 1));
-        $limit = min(max((int) $request->query->get('limit', 20), 1), 50);
-        
-        $characters = $characterRepository->findPaginated($page, $limit);
-        
-        // Obtenez le nombre total de personnages (méthode plus efficace que count(findAll()))
-        $total = $characterRepository->countTotal();
-        
-        return $this->json([
-            'total' => $total,
-            'page' => $page,
-            'limit' => $limit,
-            'pages' => ceil($total / $limit),
-            'data' => $characters,
-        ], 200, [], [
-            'groups' => ['character:read']
-        ]);
+        try {
+            // Force la récupération d'un personnage depuis l'API
+            $character = $characterRepository->getRandomCharacter();
+            
+            return $this->json([
+                'status' => 'success',
+                'message' => 'Character retrieved from API',
+                'data' => $character,
+            ], 200, [], [
+                'groups' => ['character:read']
+            ]);
+        } catch (\Exception $e) {
+            return $this->json([
+                'status' => 'error',
+                'message' => 'Failed to get random character from API: ' . $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 
     #[Route('', name: 'create', methods: ['POST'])]
@@ -125,7 +137,9 @@ final class CharacterController extends AbstractController
         ]);
     }
 
-    #[Route('/{id}', name: 'show', methods: ['GET'])]
+        // These wildcard routes are placed at the end of the class to ensure specific routes match first
+    
+    #[Route('/{id}', name: 'show', methods: ['GET'], priority: -10)]
     public function show(Character $character): JsonResponse
     {
         return $this->json([
@@ -136,7 +150,7 @@ final class CharacterController extends AbstractController
         ]);
     }
 
-    #[Route('/{id}', name: 'update', methods: ['PUT', 'PATCH'])]
+    #[Route('/{id}', name: 'update', methods: ['PUT', 'PATCH'], priority: -10)]
     public function update(Request $request, Character $character, EntityManagerInterface $entityManager, ValidatorInterface $validator): JsonResponse
     {
         // Augmenter la limite de temps d'exécution
@@ -186,7 +200,7 @@ final class CharacterController extends AbstractController
         ]);
     }
 
-    #[Route('/{id}', name: 'delete', methods: ['DELETE'])]
+    #[Route('/{id}', name: 'delete', methods: ['DELETE'], priority: -10)]
     public function delete(Character $character, EntityManagerInterface $entityManager): JsonResponse
     {
         $entityManager->remove($character);

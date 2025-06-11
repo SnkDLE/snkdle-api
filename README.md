@@ -56,6 +56,7 @@ docker compose exec php composer update
 You can also use the Symfony console directly by attaching to the PHP container:
 
 ```bash
+docker compose exec php composer require package/name
 docker compose exec php bash
 # Then inside the container:
 bin/console [your-command]
