@@ -34,6 +34,106 @@ class CharacterRepository extends ServiceEntityRepository
     }
     
     /**
+     * Search characters by name using the Attack on Titan API
+     * 
+     * @param string $name The name to search for
+     * @return array List of Character entities
+     * @throws \Exception If API request fails
+     */
+    public function searchCharacters(string $name): array
+    {
+        try {
+            // Query the Attack on Titan API
+            $response = $this->httpClient->request(
+                'GET',
+                'https://api.attackontitanapi.com/characters',
+                [
+                    'query' => [
+                        'name' => $name
+                    ],
+                    'timeout' => 15
+                ]
+            );
+            
+            $statusCode = $response->getStatusCode();
+            
+            if ($statusCode === 200) {
+                $searchResults = $response->toArray();
+                $characters = [];
+                
+                // Les APIs renvoient généralement les résultats dans un tableau 'results' ou directement
+                $characterResults = $searchResults['results'] ?? $searchResults;
+                
+                if (is_array($characterResults)) {
+                    foreach ($characterResults as $characterData) {
+                        // Ignorer les résultats sans nom
+                        if (!isset($characterData['name'])) {
+                            continue;
+                        }
+                        
+                        // Transformer les données au format de notre entité
+                        $mappedData = [
+                            'name' => $characterData['name'] ?? 'Unknown',
+                            'img' => $characterData['img'] ?? $characterData['image'] ?? '',
+                            'species' => $characterData['species'] ?? ['Human'],
+                            'gender' => $characterData['gender'] ?? 'Unknown',
+                            'age' => $characterData['age'] ?? mt_rand(12, 40),
+                            'status' => $characterData['status'] ?? 'Unknown',
+                        ];
+                        
+                        try {
+                            // Sauvegarder le personnage et l'ajouter aux résultats
+                            $character = $this->saveCharacterIfNotExists($mappedData);
+                            $characters[] = $character;
+                        } catch (\Exception $e) {
+                            // Loguer l'erreur mais continuer avec les autres résultats
+                            error_log("Error saving character {$mappedData['name']}: " . $e->getMessage());
+                        }
+                    }
+                }
+                
+                // Si aucun résultat depuis l'API, chercher en base de données
+                if (empty($characters)) {
+                    // Recherche approximative en base de données
+                    // Nettoyer le nom pour éviter les problèmes avec les guillemets
+                    $cleanName = trim(str_replace(['"', "'"], '', $name));
+                    
+                    $characters = $this->createQueryBuilder('c')
+                        ->where('LOWER(c.name) LIKE LOWER(:name)')
+                        ->setParameter('name', '%' . strtolower($cleanName) . '%')
+                        ->getQuery()
+                        ->getResult();
+                }
+                
+                return $characters;
+            }
+            
+            throw new \Exception("API returned unexpected status code: {$statusCode}");
+        } catch (\Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface $e) {
+            error_log('API Transport error: ' . $e->getMessage());
+            
+            // Fallback: recherche en base de données en cas d'échec API
+            // Nettoyer le nom pour éviter les problèmes avec les guillemets
+            $cleanName = trim(str_replace(['"', "'"], '', $name));
+            
+            $characters = $this->createQueryBuilder('c')
+                ->where('LOWER(c.name) LIKE LOWER(:name)')
+                ->setParameter('name', '%' . strtolower($cleanName) . '%')
+                ->getQuery()
+                ->getResult();
+                
+            if (!empty($characters)) {
+                return $characters;
+            }
+            
+            throw new \Exception('Impossible de se connecter à l\'API Attack on Titan: ' . $e->getMessage());
+        } catch (\Exception $e) {
+            error_log('Error searching characters: ' . $e->getMessage());
+            throw new \Exception('Erreur lors de la recherche de personnages: ' . $e->getMessage());
+        }
+    }
+    
+    /**
      * Get a random character from Attack on Titan API
      * If character already exists in database, return it without saving again
      * 

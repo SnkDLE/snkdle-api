@@ -61,6 +61,43 @@ final class CharacterController extends AbstractController
         }
     }
     
+    #[Route('/search', name: 'search', methods: ['GET'])]
+    public function search(Request $request, CharacterRepository $characterRepository): JsonResponse
+    {
+        try {
+            // Récupérer le paramètre de recherche
+            $name = $request->query->get('name');
+            
+            if (!$name) {
+                return $this->json([
+                    'status' => 'error',
+                    'message' => 'Search parameter "name" is required',
+                ], Response::HTTP_BAD_REQUEST);
+            }
+            
+            // Nettoyer le nom (supprimer les guillemets)
+            $name = trim(str_replace(['"', "'"], '', $name));
+            
+            set_time_limit(30); // Augmenter le timeout pour les recherches
+            
+            // Rechercher les personnages via l'API externe
+            $characters = $characterRepository->searchCharacters($name);
+            
+            return $this->json([
+                'status' => 'success',
+                'message' => count($characters) . ' character(s) found',
+                'data' => $characters,
+            ], 200, [], [
+                'groups' => ['character:read']
+            ]);
+        } catch (\Exception $e) {
+            return $this->json([
+                'status' => 'error',
+                'message' => 'Failed to search characters: ' . $e->getMessage(),
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+    
     #[Route('/random-api', name: 'random_api', methods: ['GET'])]
     public function randomFromApi(CharacterRepository $characterRepository): JsonResponse
     {
