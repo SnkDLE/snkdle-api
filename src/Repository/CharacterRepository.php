@@ -52,10 +52,10 @@ class CharacterRepository extends ServiceEntityRepository
             $response = $this->httpClient->request(
                 'GET',
                 "https://api.attackontitanapi.com/characters/{$randomId}",
-                [
-                    'timeout' => 15, // Increased timeout
-                    'max_retries' => 2, // Retry mechanism
-                ]
+              [
+                'timeout' => 15,
+                // No max_retries
+            ]
             );
             
             $statusCode = $response->getStatusCode();
@@ -166,8 +166,7 @@ class CharacterRepository extends ServiceEntityRepository
             
             $character->setGender($gender);
             $character->setAge($age);
-            $character->setStatus($status);
-            
+            $character->setStatus($status);            
             // Save to database
             $entityManager->persist($character);
             $entityManager->flush();

@@ -46,6 +46,24 @@ docker compose exec php bin/console doctrine:fixtures:load
 # Access database directly
 docker compose exec database psql -U app -d app
 
+#voir les table 
+\dt
+
+#trucate les datas des tables 
+SELECT 'TRUNCATE TABLE ' || tablename || ' RESTART IDENTITY CASCADE;' 
+FROM pg_tables 
+WHERE schemaname = 'public'
+\gexecDROP SCHEMA public CASCADE;
+CREATE SCHEMA public;
+GRANT ALL ON SCHEMA public TO app;
+GRANT ALL ON SCHEMA public TO public;
+
+#Delete all tables
+DROP SCHEMA public CASCADE;
+CREATE SCHEMA public;
+GRANT ALL ON SCHEMA public TO app;
+GRANT ALL ON SCHEMA public TO public;
+
 # Composer commands
 docker compose exec php composer require [package-name]
 docker compose exec php composer update
