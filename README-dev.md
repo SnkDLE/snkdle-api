@@ -135,8 +135,16 @@ curl -X GET http://localhost/api/auth/me \
 
 ### Character Endpoints
 
-**⚠️ Important :** Tous les endpoints nécessitent une authentification. Utilisez l'`apiToken` obtenu lors de la connexion.
+`GET /api/character` : affiche tous les personnages enregistrés en bdd
 
+`GET /api/character/daily` : affiche le personnage du jour (on recherche dans la bdd soit le dernier personnage enregistré ou un personnage aléatoire)
+
+`POST /api/character/random-api` : récupère un personnage aléatoire depuis l'api externe puis l'enregistre en bdd (en situation réelle cette requête doit être un cron qui fait ça tous les jours)
+
+`GET /api/character/search` : recherche de personnage par nom
+exemple : `GET /api/character/search?name=eren`
+
+**⚠️ Important :** Tous les endpoints nécessitent une authentification. Utilisez l'`apiToken` obtenu lors de la connexion.
 
 ### Notes importantes
 
