@@ -64,8 +64,8 @@ class AppFixtures extends Fixture
         // Create 10 quizzes with dates over the past 10 days
         for ($i = 0; $i < 10; $i++) {
             $quiz = new Quiz();
-            $date = new \DateTime();
-            $date->modify('-' . $i . ' days');
+            $date = new \DateTimeImmutable();
+            $date = $date->modify('-' . $i . ' days');
             $quiz->setDate($date);
             
             $manager->persist($quiz);

@@ -48,6 +48,9 @@ RUN install-php-extensions pdo_pgsql
 ###< recipes ###
 
 COPY --link frankenphp/conf.d/10-app.ini $PHP_INI_DIR/app.conf.d/
+
+# Variable pour empêcher Symfony d'utiliser setfacl
+ENV SYMFONY_SKIP_ACL_SET_PERMISSIONS=1
 COPY --link --chmod=755 frankenphp/docker-entrypoint.sh /usr/local/bin/docker-entrypoint
 COPY --link frankenphp/Caddyfile /etc/caddy/Caddyfile
 

@@ -23,7 +23,8 @@ services:
             - caddy_config:/config
             # Montage du code source local dans le conteneur pour le hot-reload
             - ./:/app
-            - ./var:/app/var
+            # Désactiver le montage de var pour éviter les problèmes de permissions
+            # - ./var:/app/var
         ports:
             # HTTP
             - target: 80

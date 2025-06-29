@@ -10,8 +10,6 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
-use Symfony\Component\Serializer\Normalizer\AbstractNormalizer;
-use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 #[Route('/api/character', name: 'api_character_')]
@@ -19,19 +17,21 @@ final class CharacterController extends AbstractController
 {
     // Reordered routes to ensure specific routes match before wildcard routes
     #[Route('', name: 'index', methods: ['GET'])]
-    public function index(Request $request, CharacterRepository $characterRepository, SerializerInterface $serializer): JsonResponse
+    public function index(Request $request, CharacterRepository $characterRepository): JsonResponse
     {
         // Définir une limite de temps d'exécution plus élevée
         set_time_limit(60);
         
-        // Utiliser simplement findAll sans filtres pour éviter le timeout
-        $characters = $characterRepository->findAll();
+        // Utiliser la méthode cachée du repository
+        $characters = $characterRepository->findAllCached();
         $total = count($characters);
         
-        return $this->json([
+        $result = [
             'total' => $total,
             'data' => $characters,
-        ], 200, [], [
+        ];
+        
+        return $this->json($result, 200, [], [
             'groups' => ['character:read']
         ]);
     }
@@ -99,15 +99,21 @@ final class CharacterController extends AbstractController
     }
     
     #[Route('/random-api', name: 'random_api', methods: ['GET'])]
-    public function randomFromApi(CharacterRepository $characterRepository): JsonResponse
+    public function randomFromApi(CharacterRepository $characterRepository, \App\Service\CacheManager $cacheManager): JsonResponse
     {
         try {
-            // Force la récupération d'un personnage depuis l'API
-            $character = $characterRepository->getRandomCharacter();
+            // Force la récupération d'un personnage depuis l'API en contournant le cache
+            // en générant une clé unique pour forcer le rafraîchissement des données
+            $freshCacheKey = $cacheManager->generateCharacterCacheKey('random', uniqid('fresh_', true));
+            
+            // Le système de cache avec une clé unique pour ne pas mémoriser ce résultat en cache
+            $character = $cacheManager->get($freshCacheKey, function() use ($characterRepository) {
+                return $characterRepository->getRandomCharacterWithoutCache();
+            }, 1); // Cache très court (1 seconde)
             
             return $this->json([
                 'status' => 'success',
-                'message' => 'Character retrieved from API',
+                'message' => 'Character retrieved from API (fresh data)',
                 'data' => $character,
             ], 200, [], [
                 'groups' => ['character:read']
@@ -122,7 +128,7 @@ final class CharacterController extends AbstractController
     }
 
     #[Route('', name: 'create', methods: ['POST'])]
-    public function create(Request $request, EntityManagerInterface $entityManager, ValidatorInterface $validator): JsonResponse
+    public function create(Request $request, EntityManagerInterface $entityManager, ValidatorInterface $validator, \App\Service\CacheManager $cacheManager): JsonResponse
     {
         // Augmenter la limite de temps d'exécution pour cette méthode
         set_time_limit(120);
@@ -139,12 +145,24 @@ final class CharacterController extends AbstractController
         $character = new Character();
         
         // Populate character entity from request data
-        if (isset($data['name'])) $character->setName($data['name']);
-        if (isset($data['image'])) $character->setImage($data['image']);
-        if (isset($data['species'])) $character->setSpecies($data['species']);
-        if (isset($data['gender'])) $character->setGender($data['gender']);
-        if (isset($data['age'])) $character->setAge($data['age']);
-        if (isset($data['status'])) $character->setStatus($data['status']);
+        if (isset($data['name'])) {
+            $character->setName($data['name']);
+        }
+        if (isset($data['image'])) {
+            $character->setImage($data['image']);
+        }
+        if (isset($data['species'])) {
+            $character->setSpecies($data['species']);
+        }
+        if (isset($data['gender'])) {
+            $character->setGender($data['gender']);
+        }
+        if (isset($data['age'])) {
+            $character->setAge($data['age']);
+        }
+        if (isset($data['status'])) {
+            $character->setStatus($data['status']);
+        }
         
         // Validate entity
         $errors = $validator->validate($character);
@@ -164,6 +182,9 @@ final class CharacterController extends AbstractController
         
         $entityManager->persist($character);
         $entityManager->flush();
+        
+        // Invalider le cache après avoir ajouté un nouveau personnage
+        $cacheManager->invalidateCharacterCaches();
         
         return $this->json([
             'status' => 'success',
@@ -188,7 +209,7 @@ final class CharacterController extends AbstractController
     }
 
     #[Route('/{id}', name: 'update', methods: ['PUT', 'PATCH'], priority: -10)]
-    public function update(Request $request, Character $character, EntityManagerInterface $entityManager, ValidatorInterface $validator): JsonResponse
+    public function update(Request $request, Character $character, EntityManagerInterface $entityManager, ValidatorInterface $validator, \App\Service\CacheManager $cacheManager): JsonResponse
     {
         // Augmenter la limite de temps d'exécution
         set_time_limit(60);
@@ -203,12 +224,24 @@ final class CharacterController extends AbstractController
         }
         
         // Update character entity from request data
-        if (isset($data['name'])) $character->setName($data['name']);
-        if (isset($data['image'])) $character->setImage($data['image']);
-        if (isset($data['species'])) $character->setSpecies($data['species']);
-        if (isset($data['gender'])) $character->setGender($data['gender']);
-        if (isset($data['age'])) $character->setAge($data['age']);
-        if (isset($data['status'])) $character->setStatus($data['status']);
+        if (isset($data['name'])) {
+            $character->setName($data['name']);
+        }
+        if (isset($data['image'])) {
+            $character->setImage($data['image']);
+        }
+        if (isset($data['species'])) {
+            $character->setSpecies($data['species']);
+        }
+        if (isset($data['gender'])) {
+            $character->setGender($data['gender']);
+        }
+        if (isset($data['age'])) {
+            $character->setAge($data['age']);
+        }
+        if (isset($data['status'])) {
+            $character->setStatus($data['status']);
+        }
         
         // Validate entity
         $errors = $validator->validate($character);
@@ -228,6 +261,9 @@ final class CharacterController extends AbstractController
         
         $entityManager->flush();
         
+        // Invalider le cache après avoir modifié un personnage
+        $cacheManager->invalidateCharacterCaches();
+        
         return $this->json([
             'status' => 'success',
             'message' => 'Character updated successfully',
@@ -238,10 +274,13 @@ final class CharacterController extends AbstractController
     }
 
     #[Route('/{id}', name: 'delete', methods: ['DELETE'], priority: -10)]
-    public function delete(Character $character, EntityManagerInterface $entityManager): JsonResponse
+    public function delete(Character $character, EntityManagerInterface $entityManager, \App\Service\CacheManager $cacheManager): JsonResponse
     {
         $entityManager->remove($character);
         $entityManager->flush();
+        
+        // Invalider le cache après avoir supprimé un personnage
+        $cacheManager->invalidateCharacterCaches();
         
         return $this->json([
             'status' => 'success',
