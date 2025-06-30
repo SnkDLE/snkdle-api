@@ -5,6 +5,7 @@ namespace App\Entity;
 use App\Repository\QuizRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use App\Entity\Question;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
@@ -22,8 +23,15 @@ class Quiz
     /**
      * @var Collection<int, question>
      */
-    #[ORM\ManyToMany(targetEntity: question::class, inversedBy: 'quizzes')]
+    #[ORM\ManyToMany(targetEntity: Question::class, inversedBy: 'quizzes')]
     private Collection $questions;
+
+
+    #[ORM\Column(length: 255)]
+    private ?string $title = null;
+
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    private ?string $description = null;
 
     public function __construct()
     {
@@ -67,6 +75,30 @@ class Quiz
     public function removeQuestion(question $question): static
     {
         $this->questions->removeElement($question);
+
+        return $this;
+    }
+
+    public function getTitle(): ?string
+    {
+        return $this->title;
+    }
+
+    public function setTitle(string $title): static
+    {
+        $this->title = $title;
+
+        return $this;
+    }
+
+    public function getDescription(): ?string
+    {
+        return $this->description;
+    }
+
+    public function setDescription(?string $description): static
+    {
+        $this->description = $description;
 
         return $this;
     }

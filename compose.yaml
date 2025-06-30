@@ -1,6 +1,7 @@
 services:
     php:
         image: ${IMAGES_PREFIX:-}app-php
+        command: tail -f /dev/null
         restart: unless-stopped
         environment:
             SERVER_NAME: ${SERVER_NAME:-localhost}, php:80
@@ -45,6 +46,8 @@ services:
     ###> doctrine/doctrine-bundle ###
     database:
         image: postgres:${POSTGRES_VERSION:-16}-alpine
+        ports: 
+         - "5432:5432"
         environment:
             POSTGRES_DB: ${POSTGRES_DB:-app}
             # You should definitely change the password in production

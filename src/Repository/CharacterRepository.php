@@ -58,7 +58,9 @@ class CharacterRepository extends ServiceEntityRepository
             $statusCode = $response->getStatusCode();
             
             if ($statusCode === 200) {
-                $searchResults = $response->toArray();
+                $content = $response->getContent(false); // brut, sans décodage
+                $utf8Content = mb_convert_encoding($content, 'UTF-8', 'auto');
+                $searchResults = json_decode($utf8Content, true, 512, JSON_THROW_ON_ERROR);
                 $characters = [];
                 
                 // Les APIs renvoient généralement les résultats dans un tableau 'results' ou directement
@@ -281,63 +283,13 @@ class CharacterRepository extends ServiceEntityRepository
     }
     
     
-    /**
-     * Get daily character (latest character added to database)
-     * 
-     * @return Character|null The daily character or null if none exists
-     */
-    public function getDailyCharacter(): ?Character
-    {
-        try {
-            error_log('Fetching daily character...');
-            
-            $conn = $this->getEntityManager()->getConnection();
-            
-            // Check if connection is still alive, if not reconnect
-            if (!$conn->isConnected()) {
-                error_log('Connection lost in getDailyCharacter, attempting to reconnect...');
-                $conn->connect();
-            }
-            
-            $dailyCharacter = $this->createQueryBuilder('c')
-                ->orderBy('c.id', 'DESC')
-                ->setMaxResults(1)
-                ->getQuery()
-                ->getOneOrNullResult();
-                
-            if ($dailyCharacter) {
-                error_log('Daily character found: ' . $dailyCharacter->getName());
-            } else {
-                error_log('No daily character found in database');
-            }
-            
-            return $dailyCharacter;
-        } catch (\Doctrine\DBAL\Exception\ConnectionException $e) {
-            error_log('Database connection error in getDailyCharacter: ' . $e->getMessage());
-            try {
-                // Try to reconnect
-                $conn = $this->getEntityManager()->getConnection();
-                $conn->close();
-                $conn->connect();
-                
-                // Try a simple query to verify connection
-                $conn->executeQuery('SELECT 1');
-                
-                // If we get here, connection is restored - retry
-                error_log('Connection restored, retrying getDailyCharacter...');
-                
-                return $this->createQueryBuilder('c')
-                    ->orderBy('c.id', 'DESC')
-                    ->setMaxResults(1)
-                    ->getQuery()
-                    ->getOneOrNullResult();
-            } catch (\Exception $reconnectEx) {
-                error_log('Failed to reconnect in getDailyCharacter: ' . $reconnectEx->getMessage());
-                return null;
-            }
-        } catch (\Exception $e) {
-            error_log('Error getting daily character: ' . $e->getMessage());
-            return null;
-        }
-    }
+   public function getDailyCharacter(): ?Character
+{
+    return $this->createQueryBuilder('c')
+        ->orderBy('c.id', 'DESC')
+        ->setMaxResults(1)
+        ->getQuery()
+        ->getOneOrNullResult();
+}
+
 }
