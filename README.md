@@ -52,6 +52,27 @@ docker compose logs -f
 
 ```bash
 docker compose exec php bash
+
+```
+
+### Générer une clé JWT
+
+```bash
+# Supprimer les anciennes clés
+rm -f config/jwt/private.pem config/jwt/public.pem
+
+# Créer le dossier s'il n'existe pas
+mkdir -p config/jwt
+
+# Générer la clé privée AVEC votre passphrase
+openssl genpkey -out config/jwt/private.pem -aes256 -algorithm rsa -pkeyopt rsa_keygen_bits:4096 -pass pass:b286dc36f881383de0cc2e5b19bec891ef6c25be370537fe6474685203952659
+
+# Générer la clé publique
+openssl pkey -in config/jwt/private.pem -out config/jwt/public.pem -pubout -passin pass:b286dc36f881383de0cc2e5b19bec891ef6c25be370537fe6474685203952659
+
+# Permissions
+chmod 600 config/jwt/private.pem
+chmod 644 config/jwt/public.pem
 ```
 
 ## 📚 Documentation
